@@ -1,0 +1,220 @@
+---
+title: "Computations of Stocastic Processes"
+Author: Aubrey Undi Phiri 
+output: html_document
+date: "2025-01-30"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Note that this document was only used for compputations, the explanations of all the processes are in the pdf file
+
+
+```{r}
+
+
+# Load necessary package for matrix exponentiation
+library(expm) #allow raising matrix to a power
+library(ggplot2)
+library(gganimate)
+library(dplyr)
+library(av)  # Load av for video rendering
+
+```
+
+
+
+Question 1
+b
+```{r}
+
+
+# Define the transition matrix P
+P <- matrix(c(
+    1,   0,   0,   0,   0,   0,   0,   0,   0,
+    0.4, 0,   0.6, 0,   0,   0,   0,   0,   0,
+    0,   0.4, 0,   0.6, 0,   0,   0,   0,   0,
+    0,   0,   0.4, 0,   0.6, 0,   0,   0,   0,
+    0,   0,   0,   0.4, 0,   0.6, 0,   0,   0,
+    0,   0,   0,   0,   0.4, 0,   0.6, 0,   0,
+    0,   0,   0,   0,   0,   0.4, 0,   0.6, 0,
+    0,   0,   0,   0,   0,   0,   0.4, 0,   0.6,
+    0,   0,   0,   0,   0,   0,   0,   0,   1
+), nrow = 9, byrow = TRUE)
+
+# Compute P^4 using matrix exponentiation
+P_4 <- P %^% 4
+
+# Label the rows and columns from 0 to 8
+colnames(P_4) <- 0:8
+rownames(P_4) <- 0:8
+
+# Print the result
+print(P_4)
+
+```
+
+Question 1
+c)
+
+The code below outputs a short video showing the simulation of the Markov chain.
+
+```{r}
+#libraries that are needed:
+# Load libraries
+#library(ggplot2)
+#library(gganimate)
+#library(dplyr)
+#library(av)  # Load av for video rendering
+
+# Set seed and define transition matrix
+set.seed(123)
+transition_matrix <- matrix(c(0.1279, 0.8721, 0.6631, 0.3369), nrow = 2, byrow = TRUE)
+states <- c("V", "C")
+
+# Simulate Markov chain
+n_steps <- 20
+sequence <- tibble(Step = 1:n_steps, State = character(n_steps))
+sequence$State[1] <- "V"
+for (i in 2:n_steps) {
+  sequence$State[i] <- sample(states, size = 1, prob = transition_matrix[sequence$State[i - 1] == states, ])
+}
+sequence <- sequence %>% mutate(StateNum = ifelse(State == "V", 1, 2))
+
+# Plot and animate
+p <- ggplot(sequence, aes(x = Step, y = StateNum, color = State, group = 1)) +
+  geom_point(size = 5) +
+  geom_line(color = "black", linewidth = 1) +  # Explicitly set the group aesthetic
+  scale_color_manual(values = c("V" = "blue", "C" = "red")) +
+  scale_y_continuous(breaks = 1:2, labels = states) +
+  theme_minimal() +
+  labs(title = "Markov Chain Simulation of State Transitions",
+       subtitle = "Step: {frame_time}",
+       x = "Time Step",
+       y = "State") +
+  transition_reveal(Step)
+
+# Save and show animation as video (MP4 format)
+animate(p, nframes = n_steps, fps = 2, renderer = av_renderer("markov_simulation.mp4"))
+
+
+```
+
+Question 1
+
+c) The full image of the simulation
+
+```{r}
+
+# Simulation settings
+set.seed(123)
+nTrials <- 1  # Number of trials
+nSteps <- 20    # Number of steps
+states <- c("V", "C")  # States
+transition_matrix <- matrix(c(0.1279, 0.8721,  
+                              0.6631, 0.3369),  
+                            nrow = 2, byrow = TRUE)
+
+# Function to simulate a single Markov chain trial
+simulate_markov_chain <- function(nSteps, transition_matrix, trial) {
+  current_state <- "V"  
+  sequence <- tibble(Step = 1, State = current_state, Trial = trial)
+  
+  for (i in 2:nSteps) {
+    current_state <- if (current_state == "V") {
+      sample(states, size = 1, prob = transition_matrix[1, ])
+    } else {
+      sample(states, size = 1, prob = transition_matrix[2, ])
+    }
+    sequence <- bind_rows(sequence, tibble(Step = i, State = current_state, Trial = trial))
+  }
+  
+  sequence <- sequence %>% mutate(StateNum = ifelse(State == "V", 1, 2))
+  return(sequence)
+}
+
+# Run multiple simulations
+simulations <- bind_rows(lapply(1:nTrials, function(trial) {
+  simulate_markov_chain(nSteps, transition_matrix, trial)
+}))
+
+# Plot the state transitions across trials as line graphs
+ggplot(simulations, aes(x = Step, y = StateNum, group = Trial, color = State)) +
+  geom_line(alpha = 0.5, size = 1) +  # Line graph with transparent lines
+  scale_color_manual(values = c("V" = "blue", "C" = "red")) +
+  scale_y_continuous(breaks = c(1, 2), labels = c("V", "C")) +
+  theme_minimal() +
+  labs(title = "Markov Chain State Transitions Across Multiple Trials",
+       subtitle = "Each line represents a trial; Blue = 'V', Red = 'C'",
+       x = "Time Step",
+       y = "State") +
+  theme(legend.position = "top")  # Move the legend to the top
+```
+
+QUESTION 4
+
+The Markov model for the dolphi activity, long term distribution.
+```{r}
+
+# Define the coefficient matrix A
+A <- matrix(c(
+  0.84 - 1, 0.03, 0.01, 0.03, 0.03,
+  0.11, 0.80 - 1, 0.15, 0.19, 0.09,
+  0.01, 0.04, 0.70 - 1, 0.02, 0.05,
+  0.04, 0.10, 0.07, 0.75 - 1, 0.00,
+  1, 1, 1, 1, 1
+), nrow = 5, byrow = TRUE)
+
+# Define the right-hand side vector B
+B <- c(0, 0, 0, 0, 1)
+
+# Solve for pi using the solve function
+pi_values <- solve(A, B)
+
+# Print the solution
+print(pi_values)
+```
+
+QUESTION 5
+
+Moving from average to Rich in N steps.
+
+N-STEP STOCHASTIC MATRICES
+
+
+```{r}
+# Define the transition matrix P
+P <- matrix(c(0, 0.75, 0.2, 0.05,
+              0.05, 0.2, 0.3, 0.45,
+              0.1, 0.4, 0.3, 0.2,
+              0, 0.15, 0.3, 0.55), 
+            nrow = 4, byrow = TRUE)
+
+# Function to calculate the n-step transition matrix
+calculate_n_step_matrix <- function(P, n) {
+  return(P %^% n)
+}
+
+# Calculate the 1-step, 2-step transition matrices
+P_1_step <- calculate_n_step_matrix(P, 1)
+
+# Calculate the 2-step transition matrices
+P_2_step <- calculate_n_step_matrix(P, 2)
+
+# Calculate the 3-step transition matrices
+P_3_step <- calculate_n_step_matrix(P, 3)
+
+# Print the results
+cat("1-step transition matrix:\n")
+print(P_1_step)
+
+cat("\n2-step transition matrix:\n")
+print(P_2_step)
+
+cat("\n3-step transition matrix:\n")
+print(P_3_step)
+
+```
+
